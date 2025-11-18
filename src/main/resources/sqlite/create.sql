@@ -1,8 +1,19 @@
-CREATE TABLE Caregivers (
-    Username varchar(255),
+CREATE TABLE Users (
+    Username varchar(255) PRIMARY KEY,
     Salt BINARY(16),
-    Hash BINARY(16),
-    PRIMARY KEY (Username)
+    Hash BINARY(16)
+);
+
+CREATE TABLE Caregivers (
+    Username varchar(255) PRIMARY KEY REFERENCES Users(Username),
+    Salt BINARY(16),
+    Hash BINARY(16)
+);
+
+CREATE TABLE Patients (
+    Username varchar(255) PRIMARY KEY REFERENCES Users(Username),
+    Salt BINARY(16),
+    Hash BINARY(16)
 );
 
 CREATE TABLE Availabilities (
@@ -16,3 +27,7 @@ CREATE TABLE Vaccines (
     Doses int,
     PRIMARY KEY (Name)
 );
+
+-- CREATE TABLE Reservations {
+
+-- }

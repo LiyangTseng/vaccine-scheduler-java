@@ -28,9 +28,9 @@ public class Scheduler {
         System.out.println();
         System.out.println("Welcome to the COVID-19 Vaccine Reservation Scheduling Application!");
         System.out.println("*** Please enter one of the following commands ***");
-        System.out.println("> create_patient <username> <password>");  //TODO: implement create_patient (Part 1)
+        System.out.println("> create_patient <username> <password>");
         System.out.println("> create_caregiver <username> <password>");
-        System.out.println("> login_patient <username> <password>");  // TODO: implement login_patient (Part 1)
+        System.out.println("> login_patient <username> <password>");
         System.out.println("> login_caregiver <username> <password>");
         System.out.println("> search_caregiver_schedule <date>");  // TODO: implement search_caregiver_schedule (Part 2)
         System.out.println("> reserve <date> <vaccine>");  // TODO: implement reserve (Part 2)
@@ -93,7 +93,30 @@ public class Scheduler {
     }
 
     private static void createPatient(String[] tokens) {
-        // TODO: Part 1
+        // create_patient <username> <password>
+        // check 1: the length for tokens need to be exactly 3 to include all information (with the operation name)
+        if (tokens.length != 3) {
+            System.out.println("Failed to create user.");
+            return;
+        }
+        String username = tokens[1];
+        String password = tokens[2];
+        // check 2: check if the username has been taken already
+        if (usernameExists(username, Patient.getPatient)) {
+            System.out.println("Username taken, try again!");
+            return;
+        }
+        byte[] salt = Util.generateSalt();
+        byte[] hash = Util.generateHash(password, salt);
+        // create the patient
+        try {
+            Patient patient = new Patient.PatientBuilder(username, salt, hash).build();
+            // save to patient information to our database
+            patient.saveToDB(Patient.addPatient);
+            System.out.println("Created user " + username);
+        } catch (SQLException e) {
+            System.out.println("Failed to create user.");
+        }
     }
 
     private static void createCaregiver(String[] tokens) {
@@ -106,7 +129,7 @@ public class Scheduler {
         String username = tokens[1];
         String password = tokens[2];
         // check 2: check if the username has been taken already
-        if (usernameExistsCaregiver(username)) {
+        if (usernameExists(username, Caregiver.getCaregiver)) {
             System.out.println("Username taken, try again!");
             return;
         }
@@ -114,28 +137,28 @@ public class Scheduler {
         byte[] hash = Util.generateHash(password, salt);
         // create the caregiver
         try {
-            Caregiver caregiver = new Caregiver.CaregiverBuilder(username, salt, hash).build(); 
+            Caregiver caregiver = new Caregiver.CaregiverBuilder(username, salt, hash).build();
             // save to caregiver information to our database
-            caregiver.saveToDB();
+            caregiver.saveToDB(Caregiver.addCaregiver);
             System.out.println("Created user " + username);
         } catch (SQLException e) {
             System.out.println("Failed to create user.");
         }
     }
 
-    private static boolean usernameExistsCaregiver(String username) {
+    private static boolean usernameExists(String username, String selectQuery) {
         ConnectionManager cm = new ConnectionManager();
         Connection con = cm.createConnection();
 
-        String selectUsername = "SELECT * FROM Caregivers WHERE Username = ?";
         try {
-            PreparedStatement statement = con.prepareStatement(selectUsername);
+            PreparedStatement statement = con.prepareStatement(selectQuery);
             statement.setString(1, username);
             ResultSet resultSet = statement.executeQuery();
             // returns false if the cursor is not before the first record or if there are no rows in the ResultSet.
             return resultSet.isBeforeFirst();
         } catch (SQLException e) {
-            System.out.println("Error occurred when checking username");
+            System.out.println("Error occurred when checking username: ");
+            System.out.println(e);
         } finally {
             cm.closeConnection();
         }
@@ -143,7 +166,33 @@ public class Scheduler {
     }
 
     private static void loginPatient(String[] tokens) {
-        // TODO: Part 1
+        // login_patient <username> <password>
+        // check 1: if someone's already logged-in, they need to log out first
+        if (currentCaregiver != null || currentPatient != null) {
+            System.out.println("User already logged in.");
+            return;
+        }
+        // check 2: the length for tokens need to be exactly 3 to include all information (with the operation name)
+        if (tokens.length != 3) {
+            System.out.println("Login failed.");
+            return;
+        }
+        String username = tokens[1];
+        String password = tokens[2];
+
+        Patient patient = null;
+        try {
+            patient = new Patient.PatientGetter(username, password).get(Patient.getPatient);
+        } catch (SQLException e) {
+            System.out.println("Login failed.");
+        }
+        // check if the login was successful
+        if (patient == null) {
+            System.out.println("Login failed.");
+        } else {
+            System.out.println("Logged in as: " + username);
+            currentPatient = patient;
+        }
     }
 
     private static void loginCaregiver(String[] tokens) {
@@ -163,7 +212,7 @@ public class Scheduler {
 
         Caregiver caregiver = null;
         try {
-            caregiver = new Caregiver.CaregiverGetter(username, password).get();
+            caregiver = new Caregiver.CaregiverGetter(username, password).get(Caregiver.getCaregiver);
         } catch (SQLException e) {
             System.out.println("Login failed.");
         }
