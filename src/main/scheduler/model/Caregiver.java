@@ -19,7 +19,7 @@ public class Caregiver extends User{
         ConnectionManager cm = new ConnectionManager();
         Connection con = cm.createConnection();
 
-        String addAvailability = "INSERT INTO Availabilities VALUES (? , ?)";
+        String addAvailability = "INSERT INTO Reservations VALUES (? , ?)";
         try {
             PreparedStatement statement = con.prepareStatement(addAvailability);
             statement.setDate(1, d);

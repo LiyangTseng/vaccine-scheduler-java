@@ -5,7 +5,7 @@ CREATE TABLE Caregivers (
     PRIMARY KEY (Username)
 );
 
-CREATE TABLE Availabilities (
+CREATE TABLE Reservations (
     Time date,
     Username varchar(255) REFERENCES Caregivers,
     PRIMARY KEY (Time, Username)
