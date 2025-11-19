@@ -7,6 +7,9 @@ import java.sql.*;
 import java.util.Arrays;
 
 public abstract class User {
+    public static String addUser = "INSERT INTO Users VALUES (?, ?, ?)";
+    public static String getUser = "SELECT * FROM Users WHERE Username = ?";
+
     protected final String username;
     protected final byte[] salt;
     protected final byte[] hash;
@@ -17,7 +20,7 @@ public abstract class User {
         this.hash = builder.hash;
     }
 
-    protected User(UserGetter getter) {
+    protected User(UserGetter<?> getter) {
         this.username = getter.username;
         this.salt = getter.salt;
         this.hash = getter.hash;
@@ -36,22 +39,32 @@ public abstract class User {
         return hash;
     }
 
-    public void saveToDB(String insertQuery) throws SQLException {
+    public void saveToDB() throws SQLException {
         ConnectionManager cm = new ConnectionManager();
         Connection con = cm.createConnection();
 
         try {
-            PreparedStatement statement = con.prepareStatement(insertQuery);
+            con.setAutoCommit(false);  // Start transaction
+            // Insert User first
+            PreparedStatement statement = con.prepareStatement(addUser);
             statement.setString(1, this.username);
             statement.setBytes(2, this.salt);
             statement.setBytes(3, this.hash);
             statement.executeUpdate();
+
+            // Subclass-specific insert (hook method)
+            saveSubclassToDB(con);
+
+            con.commit();
         } catch (SQLException e) {
+            con.rollback();  // Rollback on failure
             throw new SQLException();
         } finally {
             cm.closeConnection();
         }
     }
+
+    protected abstract void saveSubclassToDB(Connection con) throws SQLException;
 
     public abstract static class UserBuilder<T extends User> {
         private final String username;

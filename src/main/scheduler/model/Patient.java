@@ -1,8 +1,12 @@
 package scheduler.model;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+
 public class Patient extends User {
-    public static String addPatient = "INSERT INTO Patients VALUES (? , ?, ?)";
-    public static String getPatient = "SELECT Salt, Hash FROM Patients WHERE Username = ?";
+    private static String addPatient = "INSERT INTO Patients VALUES (?)";
+    public static String getPatient = "SELECT * FROM Patients WHERE Username = ?";
 
     private Patient(PatientBuilder builder) {
         super(builder);
@@ -10,6 +14,13 @@ public class Patient extends User {
 
     private Patient(PatientGetter getter) {
         super(getter);
+    }
+
+    @Override
+    protected void saveSubclassToDB(Connection con) throws SQLException {
+        PreparedStatement statement = con.prepareStatement(addPatient);
+        statement.setString(1, this.username);
+        statement.executeUpdate();
     }
 
     public static class PatientBuilder extends UserBuilder<Patient> {

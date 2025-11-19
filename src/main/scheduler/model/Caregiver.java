@@ -4,8 +4,8 @@ import scheduler.db.ConnectionManager;
 import java.sql.*;
 
 public class Caregiver extends User{
-    public static String addCaregiver = "INSERT INTO Caregivers VALUES (? , ?, ?)";
-    public static String getCaregiver = "SELECT Salt, Hash FROM Caregivers WHERE Username = ?";
+    private static String addCaregiver = "INSERT INTO Caregivers VALUES (?)";
+    public static String getCaregiver = "SELECT * FROM Caregivers WHERE Username = ?";
 
     private Caregiver(CaregiverBuilder builder) {
         super(builder);
@@ -30,6 +30,13 @@ public class Caregiver extends User{
         } finally {
             cm.closeConnection();
         }
+    }
+
+    @Override
+    protected void saveSubclassToDB(Connection con) throws SQLException {
+        PreparedStatement statement = con.prepareStatement(addCaregiver);
+        statement.setString(1, this.username);
+        statement.executeUpdate();
     }
 
     public static class CaregiverBuilder extends UserBuilder<Caregiver> {

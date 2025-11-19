@@ -3,6 +3,7 @@ package scheduler;
 import scheduler.db.ConnectionManager;
 import scheduler.model.Caregiver;
 import scheduler.model.Patient;
+import scheduler.model.User;
 import scheduler.model.Vaccine;
 import scheduler.util.Util;
 
@@ -38,7 +39,7 @@ public class Scheduler {
         System.out.println("> cancel <appointment_id>");  // TODO: implement cancel (extra credit)
         System.out.println("> add_doses <vaccine> <number>");
         System.out.println("> show_appointments");  // TODO: implement show_appointments (Part 2)
-        System.out.println("> logout");  // TODO: implement logout (Part 2)
+        System.out.println("> logout");
         System.out.println("> quit");
         System.out.println();
 
@@ -96,7 +97,7 @@ public class Scheduler {
         // create_patient <username> <password>
         // check 1: the length for tokens need to be exactly 3 to include all information (with the operation name)
         if (tokens.length != 3) {
-            System.out.println("Failed to create user.");
+            System.out.println("Failed to create patient: Require format `create_patient <username> <password>`.");
             return;
         }
         String username = tokens[1];
@@ -112,10 +113,10 @@ public class Scheduler {
         try {
             Patient patient = new Patient.PatientBuilder(username, salt, hash).build();
             // save to patient information to our database
-            patient.saveToDB(Patient.addPatient);
+            patient.saveToDB();
             System.out.println("Created user " + username);
         } catch (SQLException e) {
-            System.out.println("Failed to create user.");
+            System.out.println("Failed to create patient: " + e);
         }
     }
 
@@ -123,7 +124,7 @@ public class Scheduler {
         // create_caregiver <username> <password>
         // check 1: the length for tokens need to be exactly 3 to include all information (with the operation name)
         if (tokens.length != 3) {
-            System.out.println("Failed to create user.");
+            System.out.println("Failed to create caregiver: Require format `create_caregiver <username> <password>`");
             return;
         }
         String username = tokens[1];
@@ -139,10 +140,10 @@ public class Scheduler {
         try {
             Caregiver caregiver = new Caregiver.CaregiverBuilder(username, salt, hash).build();
             // save to caregiver information to our database
-            caregiver.saveToDB(Caregiver.addCaregiver);
+            caregiver.saveToDB();
             System.out.println("Created user " + username);
         } catch (SQLException e) {
-            System.out.println("Failed to create user.");
+            System.out.println("Failed to create caregiver: " + e);
         }
     }
 
@@ -157,8 +158,7 @@ public class Scheduler {
             // returns false if the cursor is not before the first record or if there are no rows in the ResultSet.
             return resultSet.isBeforeFirst();
         } catch (SQLException e) {
-            System.out.println("Error occurred when checking username: ");
-            System.out.println(e);
+            System.out.println("Error occurred when checking username \n" + e);
         } finally {
             cm.closeConnection();
         }
@@ -174,7 +174,7 @@ public class Scheduler {
         }
         // check 2: the length for tokens need to be exactly 3 to include all information (with the operation name)
         if (tokens.length != 3) {
-            System.out.println("Login failed.");
+            System.out.println("Login failed: Required format `login_patient <username> <password>`");
             return;
         }
         String username = tokens[1];
@@ -182,13 +182,15 @@ public class Scheduler {
 
         Patient patient = null;
         try {
-            patient = new Patient.PatientGetter(username, password).get(Patient.getPatient);
+            if (usernameExists(username, Patient.getPatient)) {
+                patient = new Patient.PatientGetter(username, password).get(User.getUser);
+            }
         } catch (SQLException e) {
-            System.out.println("Login failed.");
+            System.out.println("Login failed: " + e);
         }
         // check if the login was successful
         if (patient == null) {
-            System.out.println("Login failed.");
+            System.out.println("Login failed: patient not found.");
         } else {
             System.out.println("Logged in as: " + username);
             currentPatient = patient;
@@ -204,7 +206,7 @@ public class Scheduler {
         }
         // check 2: the length for tokens need to be exactly 3 to include all information (with the operation name)
         if (tokens.length != 3) {
-            System.out.println("Login failed.");
+            System.out.println("Login failed: Required format `login_caregiver <username> <password>`");
             return;
         }
         String username = tokens[1];
@@ -212,13 +214,15 @@ public class Scheduler {
 
         Caregiver caregiver = null;
         try {
-            caregiver = new Caregiver.CaregiverGetter(username, password).get(Caregiver.getCaregiver);
+            if (usernameExists(username, Caregiver.getCaregiver)) {
+                caregiver = new Caregiver.CaregiverGetter(username, password).get(User.getUser);
+            }
         } catch (SQLException e) {
-            System.out.println("Login failed.");
+            System.out.println("Login failed: " + e);
         }
         // check if the login was successful
         if (caregiver == null) {
-            System.out.println("Login failed.");
+            System.out.println("Login failed: caregiver not found");
         } else {
             System.out.println("Logged in as: " + username);
             currentCaregiver = caregiver;
@@ -306,6 +310,20 @@ public class Scheduler {
     }
 
     private static void logout(String[] tokens) {
-        // TODO: Part 2
+        if (currentCaregiver == null && currentPatient == null) {
+            System.out.println("Please login first");
+        } else {
+            try {
+                if (currentCaregiver != null) {
+                    currentCaregiver = null;
+                }
+                if (currentPatient != null) {
+                    currentPatient = null;
+                }
+                System.out.println("Successfully logged out");
+            } catch (Exception e) {
+                System.out.println("Please try again");
+            }
+        }
     }
 }
