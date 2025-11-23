@@ -1,5 +1,8 @@
 package scheduler.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import scheduler.db.ConnectionManager;
 import java.sql.*;
 
@@ -19,12 +22,33 @@ public class Caregiver extends User{
         ConnectionManager cm = new ConnectionManager();
         Connection con = cm.createConnection();
 
-        String addAvailability = "INSERT INTO Reservations VALUES (? , ?)";
         try {
-            PreparedStatement statement = con.prepareStatement(addAvailability);
+            PreparedStatement statement = con.prepareStatement(Availability.addAvailability);
             statement.setDate(1, d);
             statement.setString(2, this.username);
             statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new SQLException();
+        } finally {
+            cm.closeConnection();
+        }
+    }
+
+    public static List<String> getAllCaregivers() throws SQLException {
+        List<String> caregivers = new ArrayList<>();
+
+        ConnectionManager cm = new ConnectionManager();
+        Connection con = cm.createConnection();
+
+        String getCaregivers = "SELECT * FROM Caregivers";
+
+        try {
+            PreparedStatement statement = con.prepareStatement(getCaregivers);
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                caregivers.add(resultSet.getString("Username"));
+            }
+            return caregivers;
         } catch (SQLException e) {
             throw new SQLException();
         } finally {

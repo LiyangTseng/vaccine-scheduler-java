@@ -1,6 +1,7 @@
 package scheduler;
 
 import scheduler.db.ConnectionManager;
+import scheduler.model.Availability;
 import scheduler.model.Caregiver;
 import scheduler.model.Patient;
 import scheduler.model.User;
@@ -14,6 +15,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.sql.Date;
 
 public class Scheduler {
@@ -33,7 +35,7 @@ public class Scheduler {
         System.out.println("> create_caregiver <username> <password>");
         System.out.println("> login_patient <username> <password>");
         System.out.println("> login_caregiver <username> <password>");
-        System.out.println("> search_caregiver_schedule <date>");  // TODO: implement search_caregiver_schedule (Part 2)
+        System.out.println("> search_caregiver_schedule <date>");
         System.out.println("> reserve <date> <vaccine>");  // TODO: implement reserve (Part 2)
         System.out.println("> upload_availability <date>");
         System.out.println("> cancel <appointment_id>");  // TODO: implement cancel (extra credit)
@@ -230,7 +232,56 @@ public class Scheduler {
     }
 
     private static void searchCaregiverSchedule(String[] tokens) {
-        // TODO: Part 2
+        // search_caregiver_schedule <date>
+        // check 1: check if any user is logged in
+        if (currentCaregiver == null && currentPatient == null) {
+            System.out.println("Please login first");
+            return;
+        }
+
+        // check 2: the length for tokens need to be exactly 3 to include all information (with the operation name)
+        if (tokens.length != 2) {
+            System.out.println("search failed: Required format `search_caregiver_schedule <date>`");
+            return;
+        }
+        Date date;
+        try {
+            date = Date.valueOf(tokens[1]);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Please enter a valid date!");
+            return;
+        }
+
+        // get all caregiver names
+        List<String> caregivers;
+        try {
+            caregivers = Caregiver.getAllCaregivers();
+        } catch (SQLException e) {
+            System.out.println("Error occurred when retrieving all caregivers doses");
+            return;
+        }
+        // query the availabilities of the existing caregivers
+        System.out.println("Caregivers:");
+        try {
+            for (int i=0; i<caregivers.size(); ++i) {
+                Availability availability = new Availability.AvailabilityGetter(caregivers.get(i), date).get();
+                if (availability != null) {
+                    System.out.println(availability.getCaregiverName());
+                } else {
+                    System.out.println("No caregivers available");
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Please try again");
+        }
+
+        // get all vaccines
+        System.out.println("Vaccines:");
+        try {
+
+        }
+        System.out.println("No vaccines available");
+
     }
 
     private static void reserve(String[] tokens) {
@@ -257,7 +308,7 @@ public class Scheduler {
         } catch (IllegalArgumentException e) {
             System.out.println("Please enter a valid date!");
         } catch (SQLException e) {
-            System.out.println("Error occurred when uploading availability");
+            System.out.println("Error occurred when uploading availability: " + e);
         }
     }
 
@@ -312,18 +363,19 @@ public class Scheduler {
     private static void logout(String[] tokens) {
         if (currentCaregiver == null && currentPatient == null) {
             System.out.println("Please login first");
-        } else {
-            try {
-                if (currentCaregiver != null) {
-                    currentCaregiver = null;
-                }
-                if (currentPatient != null) {
-                    currentPatient = null;
-                }
-                System.out.println("Successfully logged out");
-            } catch (Exception e) {
-                System.out.println("Please try again");
+            return;
+        }
+
+        try {
+            if (currentCaregiver != null) {
+                currentCaregiver = null;
             }
+            if (currentPatient != null) {
+                currentPatient = null;
+            }
+            System.out.println("Successfully logged out");
+        } catch (Exception e) {
+            System.out.println("Please try again");
         }
     }
 }

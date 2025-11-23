@@ -12,6 +12,12 @@ CREATE TABLE Patients (
     Username varchar(255) PRIMARY KEY REFERENCES Users(Username)
 );
 
+CREATE TABLE Availabilities (
+    Time date,
+    Username varchar(255) REFERENCES Caregivers,
+    PRIMARY KEY (Time, Username)
+);
+
 -- "appointments"
 CREATE TABLE Reservations (
     Id int,
