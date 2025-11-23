@@ -6,6 +6,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Vaccine {
     private final String vaccineName;
@@ -28,6 +30,28 @@ public class Vaccine {
 
     public int getAvailableDoses() {
         return availableDoses;
+    }
+
+    public static List<String> getAllVaccines() throws SQLException {
+        List<String> vaccines = new ArrayList<>();
+
+        ConnectionManager cm = new ConnectionManager();
+        Connection con = cm.createConnection();
+
+        String getVaccines = "SELECT * FROM Vaccines";
+
+        try {
+            PreparedStatement statement = con.prepareStatement(getVaccines);
+            ResultSet resultSet = statement.executeQuery();
+            while (resultSet.next()) {
+                vaccines.add(resultSet.getString("Name"));
+            }
+            return vaccines;
+        } catch (SQLException e) {
+            throw e;
+        } finally {
+            cm.closeConnection();
+        }
     }
 
     public void saveToDB() throws SQLException {

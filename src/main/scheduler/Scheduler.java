@@ -4,6 +4,7 @@ import scheduler.db.ConnectionManager;
 import scheduler.model.Availability;
 import scheduler.model.Caregiver;
 import scheduler.model.Patient;
+import scheduler.model.Reservation;
 import scheduler.model.User;
 import scheduler.model.Vaccine;
 import scheduler.util.Util;
@@ -15,6 +16,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.sql.Date;
 
@@ -25,6 +27,7 @@ public class Scheduler {
     //       since only one user can be logged-in at a time
     private static Caregiver currentCaregiver = null;
     private static Patient currentPatient = null;
+    private static Integer appointment_id = 1; // start with 1
 
     public static void main(String[] args) {
         // printing greetings text
@@ -36,7 +39,7 @@ public class Scheduler {
         System.out.println("> login_patient <username> <password>");
         System.out.println("> login_caregiver <username> <password>");
         System.out.println("> search_caregiver_schedule <date>");
-        System.out.println("> reserve <date> <vaccine>");  // TODO: implement reserve (Part 2)
+        System.out.println("> reserve <date> <vaccine>");
         System.out.println("> upload_availability <date>");
         System.out.println("> cancel <appointment_id>");  // TODO: implement cancel (extra credit)
         System.out.println("> add_doses <vaccine> <number>");
@@ -244,6 +247,7 @@ public class Scheduler {
             System.out.println("search failed: Required format `search_caregiver_schedule <date>`");
             return;
         }
+
         Date date;
         try {
             date = Date.valueOf(tokens[1]);
@@ -257,35 +261,130 @@ public class Scheduler {
         try {
             caregivers = Caregiver.getAllCaregivers();
         } catch (SQLException e) {
-            System.out.println("Error occurred when retrieving all caregivers doses");
+            System.out.println("Error occurred when retrieving all caregivers: " + e);
             return;
         }
         // query the availabilities of the existing caregivers
         System.out.println("Caregivers:");
+        boolean found_available_caregivers = false;
+        Availability availability = null;
         try {
             for (int i=0; i<caregivers.size(); ++i) {
-                Availability availability = new Availability.AvailabilityGetter(caregivers.get(i), date).get();
+                availability = new Availability.AvailabilityGetter(caregivers.get(i), date).get();
                 if (availability != null) {
                     System.out.println(availability.getCaregiverName());
-                } else {
-                    System.out.println("No caregivers available");
+                    found_available_caregivers = true;
                 }
             }
         } catch (Exception e) {
             System.out.println("Please try again");
         }
+        if (!found_available_caregivers) {
+            System.out.println("No caregivers available");
+        }
 
         // get all vaccines
+        List<String> vaccines;
         System.out.println("Vaccines:");
         try {
-
+            vaccines = Vaccine.getAllVaccines();
+        } catch (SQLException e) {
+            System.out.println("Error occurred when retrieving all vaccines: " + e);
+            return;
         }
-        System.out.println("No vaccines available");
 
+        if (vaccines.size() == 0) {
+            System.out.println("No vaccines available");
+            return;
+        }
+        for (int i=0; i<vaccines.size(); ++i) {
+            System.out.println(vaccines.get(i));
+        }
     }
 
     private static void reserve(String[] tokens) {
-        // TODO: Part 2
+        // reserve <date> <vaccine>
+        if (currentCaregiver == null && currentPatient == null) {
+            System.out.println("Please login first");
+            return;
+        }
+
+        if (currentPatient == null) {
+            System.out.println("Please login as a patient");
+            return;
+        }
+
+        if (tokens.length != 3) {
+            System.out.println("reserve failed: Required format `reserve <date> <vaccine>`");
+            return;
+        }
+        Date date;
+        try {
+            date = Date.valueOf(tokens[1]);
+        } catch (IllegalArgumentException e) {
+            System.out.println("Please enter a valid date!");
+            return;
+        }
+        String vaccineName = tokens[2];
+        Vaccine vaccine = null;
+        try {
+            vaccine = new Vaccine.VaccineGetter(vaccineName).get();
+        } catch (SQLException e) {
+            System.out.println("Error occurred when adding doses: " + e);
+        }
+
+        if (vaccine == null || vaccine.getAvailableDoses() == 0) {
+            System.out.println("Not enough available doses");
+            return;
+        }
+
+        // get all caregiver names
+        List<String> caregivers;
+        try {
+            caregivers = Caregiver.getAllCaregivers();
+        } catch (SQLException e) {
+            System.out.println("Error occurred when retrieving all caregivers: " + e);
+            return;
+        }
+        // sort by alphabetical order
+        Collections.sort(caregivers);
+        // query the availabilities of the existing caregivers
+        boolean found_available_caregivers = false;
+        Availability availability = null;
+        try {
+            for (int i=0; i<caregivers.size(); ++i) {
+                availability = new Availability.AvailabilityGetter(caregivers.get(i), date).get();
+                if (availability != null) {
+                    found_available_caregivers = true;
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Please try again");
+        }
+        if (!found_available_caregivers) {
+            System.out.println("No caregiver is available");
+            return;
+        }
+        String caregiver = availability.getCaregiverName();
+
+        // make appointment
+        Reservation reservation = null;
+        try {
+            reservation = new Reservation.ReservationBuilder(
+                appointment_id, date, caregiver, currentPatient.getUsername(), vaccineName
+            ).build();
+            reservation.saveToDB();
+        } catch (Exception e) {
+            System.out.println("Please try again! Error occured: " + e);
+        }
+
+        System.out.println("Appointment ID " + appointment_id + ", Caregiver username " + caregiver);
+
+        appointment_id += 1;
+
+        // remove availability once successfully booked reservation
+        // TODO
     }
 
     private static void uploadAvailability(String[] tokens) {
@@ -357,10 +456,47 @@ public class Scheduler {
     }
 
     private static void showAppointments(String[] tokens) {
-        // TODO: Part 2
+        // show_appointments
+        // check 1: check if the current logged-in user is a caregiver
+        if (currentCaregiver == null && currentPatient == null) {
+            System.out.println("Please login first");
+            return;
+        }
+
+        List<Reservation> reservations = null;
+        if (currentCaregiver != null) {
+            try {
+                reservations = Reservation.getAllReservationsByCaregiver(currentCaregiver.getUsername());
+            } catch (Exception e) {
+                System.out.println("Please try again. Error occured: " + e);
+            }
+        } else {
+            try {
+                reservations = Reservation.getAllReservationsByPatient(currentPatient.getUsername());
+            } catch (Exception e) {
+                System.out.println("Please try again. Error occured: " + e);
+            }
+        }
+        if (reservations.size() == 0) {
+            System.out.println("No appointments scheduled");
+            return;
+        }
+
+        for (int i=0; i<reservations.size(); i++) {
+            Reservation r = reservations.get(i);
+            String output = String.format(
+                "%d %s %s %s",
+                r.getId(),
+                r.getVaccine(),
+                r.getDate().toString(),
+                currentCaregiver != null? r.getPatient(): r.getCaregiver()
+            );
+            System.out.println(output);
+        }
     }
 
     private static void logout(String[] tokens) {
+        // logout
         if (currentCaregiver == null && currentPatient == null) {
             System.out.println("Please login first");
             return;
