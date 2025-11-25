@@ -25,10 +25,10 @@ public class Caregiver extends User{
         try {
             PreparedStatement statement = con.prepareStatement(Availability.addAvailability);
             statement.setDate(1, d);
-            statement.setString(2, this.username);
+            statement.setString(2, this.getUsername());
             statement.executeUpdate();
         } catch (SQLException e) {
-            throw new SQLException();
+            throw e;
         } finally {
             cm.closeConnection();
         }
@@ -50,7 +50,7 @@ public class Caregiver extends User{
             }
             return caregivers;
         } catch (SQLException e) {
-            throw new SQLException();
+            throw e;
         } finally {
             cm.closeConnection();
         }

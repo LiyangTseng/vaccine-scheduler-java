@@ -10,7 +10,6 @@ import scheduler.db.ConnectionManager;
 
 public class Availability {
     public static String addAvailability = "INSERT INTO Availabilities VALUES (? , ?)";
-    public static String getAvailability = "SELECT * FROM Availabilities WHERE Username = ? AND Time = ?";
 
     private final String caregiver;
     private final Date date;
@@ -27,7 +26,11 @@ public class Availability {
 
     // Getters
     public String getCaregiverName() {
-        return caregiver;
+        return this.caregiver;
+    }
+
+    public Date getDate() {
+        return this.date;
     }
 
     public static class AvailabilityBuilder {
@@ -44,6 +47,24 @@ public class Availability {
         }
     }
 
+    public void removeAvailability() throws SQLException {
+        ConnectionManager cm = new ConnectionManager();
+        Connection con = cm.createConnection();
+
+        String deleteAvailability = "DELETE FROM Availabilities WHERE Username = ? AND Time = ?";
+
+        try {
+            PreparedStatement statement = con.prepareStatement(deleteAvailability);
+            statement.setString(1, this.caregiver);
+            statement.setDate(2, this.date);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new SQLException();
+        } finally {
+            cm.closeConnection();
+        }
+    }
+
     public static class AvailabilityGetter {
         private final String caregiver;
         private final Date date;
@@ -57,6 +78,7 @@ public class Availability {
             ConnectionManager cm = new ConnectionManager();
             Connection con = cm.createConnection();
 
+            String getAvailability = "SELECT * FROM Availabilities WHERE Username = ? AND Time = ?";
             try {
                 PreparedStatement statement = con.prepareStatement(getAvailability);
                 statement.setString(1, this.caregiver);

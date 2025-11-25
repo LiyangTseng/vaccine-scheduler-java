@@ -32,8 +32,8 @@ public class Vaccine {
         return availableDoses;
     }
 
-    public static List<String> getAllVaccines() throws SQLException {
-        List<String> vaccines = new ArrayList<>();
+    public static List<Vaccine> getAllVaccines() throws SQLException {
+        List<Vaccine> vaccines = new ArrayList<>();
 
         ConnectionManager cm = new ConnectionManager();
         Connection con = cm.createConnection();
@@ -44,7 +44,12 @@ public class Vaccine {
             PreparedStatement statement = con.prepareStatement(getVaccines);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
-                vaccines.add(resultSet.getString("Name"));
+                vaccines.add(
+                    new Vaccine.VaccineBuilder(
+                        resultSet.getString("Name"),
+                        resultSet.getInt("Doses")
+                    ).build()
+                );
             }
             return vaccines;
         } catch (SQLException e) {

@@ -18,6 +18,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collections;
 import java.util.List;
+
 import java.sql.Date;
 
 public class Scheduler {
@@ -27,7 +28,6 @@ public class Scheduler {
     //       since only one user can be logged-in at a time
     private static Caregiver currentCaregiver = null;
     private static Patient currentPatient = null;
-    private static Integer appointment_id = 1; // start with 1
 
     public static void main(String[] args) {
         // printing greetings text
@@ -41,9 +41,9 @@ public class Scheduler {
         System.out.println("> search_caregiver_schedule <date>");
         System.out.println("> reserve <date> <vaccine>");
         System.out.println("> upload_availability <date>");
-        System.out.println("> cancel <appointment_id>");  // TODO: implement cancel (extra credit)
+        System.out.println("> cancel <appointment_id>");
         System.out.println("> add_doses <vaccine> <number>");
-        System.out.println("> show_appointments");  // TODO: implement show_appointments (Part 2)
+        System.out.println("> show_appointments");
         System.out.println("> logout");
         System.out.println("> quit");
         System.out.println();
@@ -57,6 +57,7 @@ public class Scheduler {
                 response = r.readLine();
             } catch (IOException e) {
                 System.out.println("Please try again!");
+                continue;
             }
             // split the user input by spaces
             String[] tokens = response.split(" ");
@@ -98,18 +99,55 @@ public class Scheduler {
         }
     }
 
+    private static boolean isStrongPassword(String password) {
+        // At least 8 characters
+        if (password.length() < 8) {
+            return false;
+        }
+
+        // A mixture of both uppercase and lowercase letters
+        boolean hasUppercase = false;
+        boolean hasLowercase = false;
+        // A mixture of letters and numbers
+        boolean hasLetter = false;
+        boolean hasNumber = false;
+        // Inclusion of at least one special character from "!", "@", "#", "?"
+        boolean hasSpecialChar = false;
+
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                hasUppercase = true;
+                hasLetter = true;
+            } else if (Character.isLowerCase(c)) {
+                hasLowercase = true;
+                hasLetter = true;
+            } else if (Character.isDigit(c)) {
+                hasNumber = true;
+            } else if (c == '!' || c == '@' || c == '#' || c == '?') {
+                hasSpecialChar = true;
+            }
+        }
+
+        return hasUppercase && hasLowercase && hasLetter && hasNumber && hasSpecialChar;
+    }
+
     private static void createPatient(String[] tokens) {
         // create_patient <username> <password>
         // check 1: the length for tokens need to be exactly 3 to include all information (with the operation name)
         if (tokens.length != 3) {
-            System.out.println("Failed to create patient: Require format `create_patient <username> <password>`.");
+            System.out.println("Create patient failed");
             return;
         }
         String username = tokens[1];
         String password = tokens[2];
         // check 2: check if the username has been taken already
         if (usernameExists(username, Patient.getPatient)) {
-            System.out.println("Username taken, try again!");
+            System.out.println("Username taken, try again");
+            return;
+        }
+        // check 3: check password strength
+        if (!isStrongPassword(password)) {
+            System.out.println("Create patient failed, please use a strong password (8+ char, at least one upper and one lower, at least one letter and one number, and at least one special character, from \"!\", \"@\", \"#\", \"?\")");
             return;
         }
         byte[] salt = Util.generateSalt();
@@ -136,7 +174,12 @@ public class Scheduler {
         String password = tokens[2];
         // check 2: check if the username has been taken already
         if (usernameExists(username, Caregiver.getCaregiver)) {
-            System.out.println("Username taken, try again!");
+            System.out.println("Username taken, try again");
+            return;
+        }
+        // check 3: check password strength
+        if (!isStrongPassword(password)) {
+            System.out.println("Create caregiver failed, please use a strong password (8+ char, at least one upper and one lower, at least one letter and one number, and at least one special character, from \"!\", \"@\", \"#\", \"?\")");
             return;
         }
         byte[] salt = Util.generateSalt();
@@ -174,12 +217,12 @@ public class Scheduler {
         // login_patient <username> <password>
         // check 1: if someone's already logged-in, they need to log out first
         if (currentCaregiver != null || currentPatient != null) {
-            System.out.println("User already logged in.");
+            System.out.println("User already logged in, try again");
             return;
         }
         // check 2: the length for tokens need to be exactly 3 to include all information (with the operation name)
         if (tokens.length != 3) {
-            System.out.println("Login failed: Required format `login_patient <username> <password>`");
+            System.out.println("Login patient failed");
             return;
         }
         String username = tokens[1];
@@ -195,9 +238,9 @@ public class Scheduler {
         }
         // check if the login was successful
         if (patient == null) {
-            System.out.println("Login failed: patient not found.");
+            System.out.println("Login patient failed");
         } else {
-            System.out.println("Logged in as: " + username);
+            System.out.println("Logged in as " + username);
             currentPatient = patient;
         }
     }
@@ -206,7 +249,7 @@ public class Scheduler {
         // login_caregiver <username> <password>
         // check 1: if someone's already logged-in, they need to log out first
         if (currentCaregiver != null || currentPatient != null) {
-            System.out.println("User already logged in.");
+            System.out.println("User already logged in, try again");
             return;
         }
         // check 2: the length for tokens need to be exactly 3 to include all information (with the operation name)
@@ -244,7 +287,7 @@ public class Scheduler {
 
         // check 2: the length for tokens need to be exactly 3 to include all information (with the operation name)
         if (tokens.length != 2) {
-            System.out.println("search failed: Required format `search_caregiver_schedule <date>`");
+            System.out.println("Please try again");
             return;
         }
 
@@ -252,7 +295,7 @@ public class Scheduler {
         try {
             date = Date.valueOf(tokens[1]);
         } catch (IllegalArgumentException e) {
-            System.out.println("Please enter a valid date!");
+            System.out.println("Please try again");
             return;
         }
 
@@ -264,6 +307,8 @@ public class Scheduler {
             System.out.println("Error occurred when retrieving all caregivers: " + e);
             return;
         }
+        // sort by alphabetical order
+        Collections.sort(caregivers);
         // query the availabilities of the existing caregivers
         System.out.println("Caregivers:");
         boolean found_available_caregivers = false;
@@ -284,7 +329,7 @@ public class Scheduler {
         }
 
         // get all vaccines
-        List<String> vaccines;
+        List<Vaccine> vaccines;
         System.out.println("Vaccines:");
         try {
             vaccines = Vaccine.getAllVaccines();
@@ -298,7 +343,7 @@ public class Scheduler {
             return;
         }
         for (int i=0; i<vaccines.size(); ++i) {
-            System.out.println(vaccines.get(i));
+            System.out.println(vaccines.get(i).getVaccineName() + " " + vaccines.get(i).getAvailableDoses());
         }
     }
 
@@ -315,7 +360,7 @@ public class Scheduler {
         }
 
         if (tokens.length != 3) {
-            System.out.println("reserve failed: Required format `reserve <date> <vaccine>`");
+            System.out.println("Please try again");
             return;
         }
         Date date;
@@ -331,6 +376,7 @@ public class Scheduler {
             vaccine = new Vaccine.VaccineGetter(vaccineName).get();
         } catch (SQLException e) {
             System.out.println("Error occurred when adding doses: " + e);
+            return;
         }
 
         if (vaccine == null || vaccine.getAvailableDoses() == 0) {
@@ -361,12 +407,23 @@ public class Scheduler {
             }
         } catch (Exception e) {
             System.out.println("Please try again");
+            return;
         }
         if (!found_available_caregivers) {
             System.out.println("No caregiver is available");
             return;
         }
         String caregiver = availability.getCaregiverName();
+
+        // get the next available appointment ID
+        Integer appointment_id = 1;
+        try {
+            Integer maxId = Reservation.getMaxAppointmentId();
+            appointment_id = maxId + 1;
+        } catch (SQLException e) {
+            System.out.println("Please try again! Error occured: " + e);
+            return;
+        }
 
         // make appointment
         Reservation reservation = null;
@@ -377,14 +434,28 @@ public class Scheduler {
             reservation.saveToDB();
         } catch (Exception e) {
             System.out.println("Please try again! Error occured: " + e);
+            return;
         }
 
         System.out.println("Appointment ID " + appointment_id + ", Caregiver username " + caregiver);
 
         appointment_id += 1;
 
-        // remove availability once successfully booked reservation
-        // TODO
+        // remove availability once reservation is successfully booked
+        try {
+            availability.removeAvailability();
+        } catch (SQLException e) {
+            System.out.println("Please try again! Error occured: " + e);
+            return;
+        }
+
+        // mark the vaccine as used
+        try {
+            vaccine.decreaseAvailableDoses(1);
+        } catch (Exception e) {
+            System.out.println("Please try again! Error occured: " + e);
+            return;
+        }
     }
 
     private static void uploadAvailability(String[] tokens) {
@@ -400,19 +471,108 @@ public class Scheduler {
             return;
         }
         String date = tokens[1];
+        Date d = null;
         try {
-            Date d = Date.valueOf(date);
-            currentCaregiver.uploadAvailability(d);
-            System.out.println("Availability uploaded!");
+            d = Date.valueOf(date);
         } catch (IllegalArgumentException e) {
             System.out.println("Please enter a valid date!");
+            return;
+        }
+
+        // check if the time slot is already taken
+        Availability availability = null;
+        try {
+            availability = new Availability.AvailabilityGetter(currentCaregiver.getUsername(), d).get();
+        } catch (SQLException e) {
+            System.out.println("Error occurred when checking availability: " + e);
+            return;
+        }
+        if (availability != null) {
+            System.out.println("Failed to upload! Date " + date.toString() + " already taken!");
+            return;
+        }
+
+        // upload availability
+        try {
+            currentCaregiver.uploadAvailability(d);
+            System.out.println("Availability uploaded!");
         } catch (SQLException e) {
             System.out.println("Error occurred when uploading availability: " + e);
+            return;
         }
     }
 
     private static void cancel(String[] tokens) {
-        // TODO: Extra credit
+        // cancel <appointment_id>
+        if (currentCaregiver == null && currentPatient == null) {
+            System.out.println("Please login first");
+            return;
+        }
+
+        if (tokens.length != 2) {
+            System.out.println("Please try again");
+            return;
+        }
+        int appointment_id = Integer.parseInt(tokens[1]);
+        Reservation reservation = null;
+
+        try {
+            reservation = Reservation.getReservationById(appointment_id);
+        } catch (Exception e) {
+            System.out.println("Error occurred when retreiving reservation: " + e);
+        }
+
+        if (reservation == null) {
+            System.out.println("Appointment ID " + appointment_id + " does not exist");
+            return;
+        }
+
+        try {
+            reservation.removeReservation();
+        } catch (Exception e) {
+            System.out.println("Error occurred when removing reservation: " + e);
+        }
+
+        // restore availability and vaccine
+        Date booked_time = reservation.getDate();
+        String caregiver_name = reservation.getCaregiver();
+        String vaccine_name = reservation.getVaccine();
+        ConnectionManager cm = new ConnectionManager();
+        Connection con = cm.createConnection();
+
+        // upload availability
+        try {
+            PreparedStatement statement = con.prepareStatement(Availability.addAvailability);
+            statement.setDate(1, booked_time);
+            statement.setString(2, caregiver_name);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            System.out.println("Error occurred when restoring availability: " + e);
+            return;
+        }
+
+        // update
+        Vaccine vaccine = null;
+        try {
+            vaccine = new Vaccine.VaccineGetter(vaccine_name).get();
+        } catch (SQLException e) {
+            System.out.println("Error occurred when checking vaccine: " + e);
+            return;
+        }
+
+        if (vaccine == null) {
+            System.out.println("Vaccine not found");
+            return;
+        }
+
+        try {
+            vaccine.increaseAvailableDoses(1);
+        } catch (SQLException e) {
+            System.out.println("Error occurred when restoring vaccine: " + e);
+            return;
+        }
+
+        System.out.println("Appointment ID " + appointment_id + " has been successfully canceled");
     }
 
     private static void addDoses(String[] tokens) {
@@ -434,6 +594,7 @@ public class Scheduler {
             vaccine = new Vaccine.VaccineGetter(vaccineName).get();
         } catch (SQLException e) {
             System.out.println("Error occurred when adding doses");
+            return;
         }
         // check 3: if getter returns null, it means that we need to create the vaccine and insert it into the Vaccines
         //          table
@@ -443,6 +604,7 @@ public class Scheduler {
                 vaccine.saveToDB();
             } catch (SQLException e) {
                 System.out.println("Error occurred when adding doses");
+                return;
             }
         } else {
             // if the vaccine is not null, meaning that the vaccine already exists in our table
@@ -450,6 +612,7 @@ public class Scheduler {
                 vaccine.increaseAvailableDoses(doses);
             } catch (SQLException e) {
                 System.out.println("Error occurred when adding doses");
+                return;
             }
         }
         System.out.println("Doses updated!");
@@ -463,18 +626,25 @@ public class Scheduler {
             return;
         }
 
+        if (tokens.length != 1) {
+            System.out.println("Please try again");
+            return;
+        }
+
         List<Reservation> reservations = null;
         if (currentCaregiver != null) {
             try {
                 reservations = Reservation.getAllReservationsByCaregiver(currentCaregiver.getUsername());
             } catch (Exception e) {
                 System.out.println("Please try again. Error occured: " + e);
+                return;
             }
         } else {
             try {
                 reservations = Reservation.getAllReservationsByPatient(currentPatient.getUsername());
             } catch (Exception e) {
                 System.out.println("Please try again. Error occured: " + e);
+                return;
             }
         }
         if (reservations.size() == 0) {
@@ -499,6 +669,11 @@ public class Scheduler {
         // logout
         if (currentCaregiver == null && currentPatient == null) {
             System.out.println("Please login first");
+            return;
+        }
+
+        if (tokens.length != 1) {
+            System.out.println("Please try again");
             return;
         }
 

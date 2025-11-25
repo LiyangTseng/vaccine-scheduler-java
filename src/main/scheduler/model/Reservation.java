@@ -91,7 +91,7 @@ public class Reservation {
         ConnectionManager cm = new ConnectionManager();
         Connection con = cm.createConnection();
 
-        String getAllReservations = "SELECT * FROM Reservations WHERE PatientName = ?";
+        String getAllReservations = "SELECT * FROM Reservations WHERE PatientName = ? ORDER BY Id";
 
         try {
             PreparedStatement statement = con.prepareStatement(getAllReservations);
@@ -130,7 +130,7 @@ public class Reservation {
             statement.setString(5, this.vaccine);
             statement.executeUpdate();
         } catch (SQLException e) {
-            throw new SQLException();
+            throw e;
         } finally {
             cm.closeConnection();
         }
@@ -187,10 +187,77 @@ public class Reservation {
                 }
                 return null;
             } catch (SQLException e) {
-                throw new SQLException();
+                throw e;
             } finally {
                 cm.closeConnection();
             }
+        }
+    }
+
+    public static Reservation getReservationById(Integer id) throws SQLException {
+        ConnectionManager cm = new ConnectionManager();
+        Connection con = cm.createConnection();
+
+        String getReservation = "SELECT Id, Time, CaregiverName, PatientName, VaccineName FROM Reservations WHERE Id = ?";
+        try {
+            PreparedStatement statement = con.prepareStatement(getReservation);
+            statement.setInt(1, id);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                Reservation reservation = new Reservation.ReservationBuilder(
+                    resultSet.getInt("Id"),
+                    resultSet.getDate("Time"),
+                    resultSet.getString("CaregiverName"),
+                    resultSet.getString("PatientName"),
+                    resultSet.getString("VaccineName")
+                ).build();
+                return reservation;
+            }
+            return null;
+        } catch (SQLException e) {
+            throw e;
+        } finally {
+            cm.closeConnection();
+        }
+    }
+
+    public void removeReservation() throws SQLException {
+        ConnectionManager cm = new ConnectionManager();
+        Connection con = cm.createConnection();
+
+        String deleteReservation = "DELETE FROM Reservations WHERE Id = ?";
+        try {
+            PreparedStatement statement = con.prepareStatement(deleteReservation);
+            statement.setInt(1, this.id);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw e;
+        } finally {
+            cm.closeConnection();
+        }
+    }
+
+    public static Integer getMaxAppointmentId() throws SQLException {
+        ConnectionManager cm = new ConnectionManager();
+        Connection con = cm.createConnection();
+
+        String getMaxId = "SELECT MAX(Id) as maxId FROM Reservations";
+        try {
+            PreparedStatement statement = con.prepareStatement(getMaxId);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                Integer maxId = resultSet.getInt("maxId");
+                // If resultSet.getInt returns 0 for NULL, check if it's actually NULL
+                if (resultSet.wasNull()) {
+                    return 0;
+                }
+                return maxId;
+            }
+            return 0;
+        } catch (SQLException e) {
+            throw e;
+        } finally {
+            cm.closeConnection();
         }
     }
 }

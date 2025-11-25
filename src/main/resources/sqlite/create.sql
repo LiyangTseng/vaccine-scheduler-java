@@ -25,7 +25,7 @@ CREATE TABLE Reservations (
     CaregiverName varchar(255) REFERENCES Caregivers(Username),
     PatientName varchar(255) REFERENCES Patients(Username),
     VaccineName varchar(255) REFERENCES Vaccines(Name),
-    PRIMARY KEY (Time, CaregiverName)
+    PRIMARY KEY (Id) UNIQUE (Time, VaccineName, CaregiverName)
 );
 
 CREATE TABLE Vaccines (
